@@ -76,13 +76,13 @@ export default async function NotePage({ params }: { params: { id: string } }) {
         <form id="edit-note-form" action={updateNote} className="space-y-6">
           <input
             name="title"
-            defaultValue={note.title}
+            defaultValue={note.title ?? ""}
             className="w-full bg-transparent text-3xl focus:outline-none"
           />
 
           <textarea
             name="content"
-            defaultValue={note.content}
+            defaultValue={note.content ?? ""}
             rows={16}
             className="w-full bg-transparent resize-none focus:outline-none"
           />
