@@ -10,7 +10,7 @@ export default async function NotePage({ params }: { params: { id: string } }) {
 
   const currentUser = user;
 
-  const id = Number(params.id);
+  const id = Number((await params).id);
   if (Number.isNaN(id)) notFound();
 
   const note = await prisma.note.findUnique({
