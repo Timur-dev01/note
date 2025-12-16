@@ -7,12 +7,16 @@ import { getCurrentUser } from "@/lib/current-user";
 export default async function NotePage({ params }: { params: { id: string } }) {
   const user = await getCurrentUser();
   if (!user) redirect("/api/auth");
-  const id = Number((await params).id);
+
+  const currentUser = user;
+
+  const id = Number(params.id);
+  if (Number.isNaN(id)) notFound();
 
   const note = await prisma.note.findUnique({
     where: {
       id,
-      authorId: user.id,
+      authorId: currentUser.id,
     },
   });
 
@@ -27,7 +31,7 @@ export default async function NotePage({ params }: { params: { id: string } }) {
     await prisma.note.update({
       where: {
         id,
-        authorId: user.id,
+        authorId: currentUser.id,
       },
       data: { title, content },
     });
@@ -42,7 +46,7 @@ export default async function NotePage({ params }: { params: { id: string } }) {
     await prisma.note.delete({
       where: {
         id,
-        authorId: user.id,
+        authorId: currentUser.id,
       },
     });
 
