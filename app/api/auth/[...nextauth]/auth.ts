@@ -2,7 +2,6 @@
 import prisma from "@/lib/prisma";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import type { AuthOptions } from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
 import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
 
@@ -22,42 +21,6 @@ export const authOptions: AuthOptions = {
           access_type: "offline",
           response_type: "code",
         },
-      },
-    }),
-    CredentialsProvider({
-      name: "Dotlabs",
-      credentials: {
-        username: {
-          label: "Username",
-          type: "text",
-          placeholder: "jsmith",
-        },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials, req) {
-        // Basic credentials flow backed by Prisma.
-        // NOTE: This implementation does NOT validate passwords — add hashing and verification for production.
-        if (!credentials?.username) return null;
-
-        const email = credentials.username;
-
-        // Try to find an existing user by email, otherwise create one (simple registration)
-        let user = await prisma.user.findUnique({ where: { email } });
-
-        if (!user) {
-          user = await prisma.user.create({
-            data: {
-              email,
-              name: email.includes("@") ? email.split("@")[0] : email,
-            },
-          });
-        }
-
-        return {
-          id: String(user.id),
-          name: user.name ?? undefined,
-          email: user.email,
-        } as any;
       },
     }),
   ],
@@ -80,6 +43,24 @@ export const authOptions: AuthOptions = {
         token.email = (profile as any).email;
       }
 
+      // Ensure role is present on the token by looking up the user in the database when possible
+      try {
+        const email = token.email as string | undefined;
+        if (email) {
+          const dbUser = await prisma.user.findUnique({ where: { email } });
+          if (dbUser) token.role = dbUser.role as any;
+        } else if (token.sub) {
+          // sometimes token.sub contains the user id
+          const id = Number(token.sub);
+          if (!Number.isNaN(id)) {
+            const dbUser = await prisma.user.findUnique({ where: { id } });
+            if (dbUser) token.role = dbUser.role as any;
+          }
+        }
+      } catch (e) {
+        // ignore DB errors here — token will simply not have role
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -88,6 +69,8 @@ export const authOptions: AuthOptions = {
         const userObj = (session.user ?? ({} as any)) as any;
         userObj.id = token.id ?? token.sub;
         userObj.email = token.email ?? userObj.email;
+        // expose role to client session
+        userObj.role = token.role ?? userObj.role ?? undefined;
         session.user = userObj;
         (session as any).accessToken = token.accessToken;
       }
@@ -95,7 +78,16 @@ export const authOptions: AuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // After sign in/registration always redirect to the homepage
+      // Respect callback url when provided (e.g. redirect to /admin)
+      try {
+        if (!url) return baseUrl;
+        // If url is relative (starts with '/') return baseUrl + url
+        if (url.startsWith("/")) return `${baseUrl}${url}`;
+        // If url is absolute and starts with baseUrl, allow it
+        if (url.startsWith(baseUrl)) return url;
+      } catch (e) {
+        // fallback
+      }
       return baseUrl;
     },
   },

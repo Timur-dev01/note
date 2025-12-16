@@ -12,7 +12,7 @@ export default function NotFound() {
         </h2>
 
         <Link
-          href="/"
+          href="/notes"
           className="px-6 py-3 rounded-xl font-medium transition-all"
           style={{
             backgroundColor: "#1e1b22",
@@ -20,7 +20,7 @@ export default function NotFound() {
             border: "1px solid #1d1a20",
           }}
         >
-          Вернуться на главную
+          Вернуться назад
         </Link>
       </div>
     </div>
