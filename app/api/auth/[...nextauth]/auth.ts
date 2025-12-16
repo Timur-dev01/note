@@ -42,25 +42,6 @@ export const authOptions: AuthOptions = {
       if (profile && (profile as any).email) {
         token.email = (profile as any).email;
       }
-
-      // Ensure role is present on the token by looking up the user in the database when possible
-      try {
-        const email = token.email as string | undefined;
-        if (email) {
-          const dbUser = await prisma.user.findUnique({ where: { email } });
-          if (dbUser) token.role = dbUser.role as any;
-        } else if (token.sub) {
-          // sometimes token.sub contains the user id
-          const id = Number(token.sub);
-          if (!Number.isNaN(id)) {
-            const dbUser = await prisma.user.findUnique({ where: { id } });
-            if (dbUser) token.role = dbUser.role as any;
-          }
-        }
-      } catch (e) {
-        // ignore DB errors here — token will simply not have role
-      }
-
       return token;
     },
     async session({ session, token }) {
